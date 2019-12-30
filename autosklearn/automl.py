@@ -85,6 +85,7 @@ class AutoML(BaseEstimator):
                  get_smac_object_callback=None,
                  smac_scenario_args=None,
                  logging_config=None,
+                 incremental_learning=False,
                  ):
         super(AutoML, self).__init__()
         self._backend = backend
@@ -115,6 +116,7 @@ class AutoML(BaseEstimator):
         self._get_smac_object_callback = get_smac_object_callback
         self._smac_scenario_args = smac_scenario_args
         self.logging_config = logging_config
+        self._incremental_learning = incremental_learning
 
         self._datamanager = None
         self._dataset_name = None
@@ -863,7 +865,7 @@ class AutoML(BaseEstimator):
             exclude_estimators=exclude_estimators,
             include_preprocessors=include_preprocessors,
             exclude_preprocessors=exclude_preprocessors,
-            incremental_learning=self.incremental_learning)
+            incremental_learning=self._incremental_learning)
         configuration_space = self.configuration_space_created_hook(
             datamanager, configuration_space)
         sp_string = pcs.write(configuration_space)
@@ -935,13 +937,12 @@ class BaseAutoML(AutoML):
 
 
 class AutoMLClassifier(BaseAutoML):
-    def __init__(self, *args, incremental_learning=False, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self._task_mapping = {'multilabel-indicator': MULTILABEL_CLASSIFICATION,
                               'multiclass': MULTICLASS_CLASSIFICATION,
                               'binary': BINARY_CLASSIFICATION}
-        self.incremental_learning = incremental_learning
 
     def fit(
         self,

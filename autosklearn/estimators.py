@@ -312,6 +312,7 @@ class AutoSklearnEstimator(BaseEstimator):
             smac_scenario_args=smac_scenario_args,
             logging_config=self.logging_config,
             metadata_directory=self.metadata_directory,
+            incremental_learning=self._incremental_learning,
         )
 
         return automl
@@ -345,7 +346,6 @@ class AutoSklearnEstimator(BaseEstimator):
                 output_folder=self.output_folder,
             )
             self._automl.append(automl)
-            kwargs["incremental_learning"] = True
             self._automl[0].fit(**kwargs)
         else:
             tmp_folder, output_folder = get_randomized_directory_names(

@@ -20,13 +20,14 @@ class BasePipeline(Pipeline):
 
     def __init__(self, config=None, pipeline=None, dataset_properties=None,
                  include=None, exclude=None, random_state=None,
-                 init_params=None):
+                 init_params=None, incremental_learning=False):
 
         self._init_params = init_params if init_params is not None else {}
         self.include_ = include if include is not None else {}
         self.exclude_ = exclude if exclude is not None else {}
         self.dataset_properties_ = dataset_properties if \
             dataset_properties is not None else {}
+        self.dataset_properties_['incremental_learning'] = incremental_learning
 
         if pipeline is None:
             self.steps = self._get_pipeline()
