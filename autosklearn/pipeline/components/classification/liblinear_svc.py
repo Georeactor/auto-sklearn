@@ -82,6 +82,7 @@ class LibLinear_SVC(AutoSklearnClassificationAlgorithm):
                 'handles_classification': True,
                 'handles_multiclass': True,
                 'handles_multilabel': True,
+                'handles_incremental_learning': False,
                 'is_deterministic': False,
                 'input': (SPARSE, DENSE, UNSIGNED_DATA),
                 'output': (PREDICTIONS,)}

@@ -96,6 +96,7 @@ class MultinomialNB(IterativeComponent, AutoSklearnClassificationAlgorithm):
                 'handles_classification': True,
                 'handles_multiclass': True,
                 'handles_multilabel': True,
+                'handles_incremental_learning': True,
                 'is_deterministic': True,
                 'input': (DENSE, SPARSE, SIGNED_DATA),
                 'output': (PREDICTIONS,)}

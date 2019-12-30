@@ -44,6 +44,7 @@ class AutoSklearnEstimator(BaseEstimator):
         smac_scenario_args=None,
         logging_config=None,
         metadata_directory=None,
+        incremental_learning=False,
     ):
         """
         Parameters
@@ -209,6 +210,9 @@ class AutoSklearnEstimator(BaseEstimator):
             path to the metadata directory. If None, the default directory
             (autosklearn.metalearning.files) is used.
 
+        incremental_learning : bool, optional (False)
+            Limit AutoML to estimators which implement incremental learning through partial_fit
+
         Attributes
         ----------
 
@@ -248,6 +252,7 @@ class AutoSklearnEstimator(BaseEstimator):
         self.smac_scenario_args = smac_scenario_args
         self.logging_config = logging_config
         self.metadata_directory = metadata_directory
+        self._incremental_learning = incremental_learning
 
         self._automl = None  # type: Optional[List[BaseAutoML]]
         # n_jobs after conversion to a number (b/c default is None)
@@ -311,12 +316,119 @@ class AutoSklearnEstimator(BaseEstimator):
 
         return automl
 
+    def partial_fit(self, **kwargs):
+        self._automl = []
+        if self.shared_mode and self.n_jobs:
+            raise ValueError(
+                'Cannot enable both shared_model and n_jobs. Please specify '
+                'only one of them.'
+            )
+
+        if not self._incremental_learning:
+            raise ValueError(
+                'Cannot call partial_fit on a model unless it was initialized with '
+                'incremental_learning=True.'
+            )
+
+        if self.n_jobs is None or self.n_jobs == 1:
+            self._n_jobs = 1
+            shared_mode = self.shared_mode
+            seed = self.seed
+            automl = self.build_automl(
+                seed=seed,
+                shared_mode=shared_mode,
+                ensemble_size=self.ensemble_size,
+                initial_configurations_via_metalearning=(
+                    self.initial_configurations_via_metalearning
+                ),
+                tmp_folder=self.tmp_folder,
+                output_folder=self.output_folder,
+            )
+            self._automl.append(automl)
+            kwargs["incremental_learning"] = True
+            self._automl[0].fit(**kwargs)
+        else:
+            tmp_folder, output_folder = get_randomized_directory_names(
+                temporary_directory=self.tmp_folder,
+                output_directory=self.output_folder,
+            )
+
+            self._n_jobs = self.n_jobs
+            shared_mode = True
+            seeds = set()
+            for i in range(self._n_jobs):
+                rs = np.random.RandomState(self.seed + i)
+                while True:
+                    seed = int(rs.randint(0, 2 ** 32))
+                    if seed in seeds:
+                        continue
+                    else:
+                        break
+
+                if i != 0:
+                    smac_scenario_args = copy.deepcopy(self.smac_scenario_args)
+                    if smac_scenario_args is None:
+                        smac_scenario_args = dict()
+                    if 'initial_incumbent' not in smac_scenario_args:
+                        smac_scenario_args['initial_incumbent'] = 'RANDOM'
+                else:
+                    smac_scenario_args = self.smac_scenario_args
+
+                automl = self.build_automl(
+                    seed=seed,
+                    shared_mode=shared_mode,
+                    # Start the ensemble process only for the first AutoML
+                    # process (the first AutoML will be executed in the
+                    # current process, too)
+                    ensemble_size=self.ensemble_size if i == 0 else 0,
+                    initial_configurations_via_metalearning=(
+                        self.initial_configurations_via_metalearning
+                        if i == 0
+                        else 0
+                    ),
+                    tmp_folder=tmp_folder,
+                    output_folder=output_folder,
+                    smac_scenario_args=smac_scenario_args,
+                )
+                self._automl.append(automl)
+            # Start all except for the first instances of Auto-sklearn in a
+            # new process!
+            processes = []
+            for i in range(1, self._n_jobs):
+                p = multiprocessing.Process(
+                    target=_fit_automl,
+                    kwargs=dict(
+                        automl=self._automl[i],
+                        kwargs=kwargs,
+                        load_models=False,
+                        incremental_learning=True,
+                    ),
+                )
+                processes.append(p)
+                p.start()
+            _fit_automl(
+                automl=self._automl[0],
+                kwargs=kwargs,
+                load_models=True,
+                incremental_learning=True,
+            )
+            for p in processes:
+                p.join()
+
+        return self
+
     def fit(self, **kwargs):
         self._automl = []
         if self.shared_mode and self.n_jobs:
             raise ValueError(
                 'Cannot enable both shared_model and n_jobs. Please specify '
                 'only one of them.'
+            )
+
+        if self._incremental_learning:
+            raise ValueError(
+                'Cannot call fit on an incremental learning model, once it has '
+                'been initialized with partial_fit.'
             )
 
         if self.n_jobs is None or self.n_jobs == 1:
@@ -586,6 +698,22 @@ class AutoSklearnClassifier(AutoSklearnEstimator):
     This class implements the classification task.
 
     """
+
+    def partial_fit(self, X, y,
+            X_test=None,
+            y_test=None,
+            metric=None,
+            feat_type=None,
+            dataset_name=None):
+        super().partial_fit(
+            X=X,
+            y=y,
+            X_test=X_test,
+            y_test=y_test,
+            metric=metric,
+            feat_type=feat_type,
+            dataset_name=dataset_name,
+        )
 
     def fit(self, X, y,
             X_test=None,

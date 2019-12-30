@@ -64,8 +64,11 @@ class ClassifierChoice(AutoSklearnChoice):
             if dataset_properties.get('multiclass') is True and entry.get_properties()[
                 'handles_multiclass'] is False:
                 continue
-            if dataset_properties.get('multilabel') is True and available_comp[name]. \
-                    get_properties()['handles_multilabel'] is False:
+            if dataset_properties.get('multilabel') is True and entry.get_properties()[
+                'handles_multilabel'] is False:
+                continue
+            if dataset_properties.get('incremental_learning') is True and \
+                entry.get_properties()['handles_incremental_learning'] is False:
                 continue
             components_dict[name] = entry
 

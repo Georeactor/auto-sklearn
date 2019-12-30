@@ -14,7 +14,8 @@ def get_configuration_space(info,
                             include_estimators=None,
                             exclude_estimators=None,
                             include_preprocessors=None,
-                            exclude_preprocessors=None):
+                            exclude_preprocessors=None,
+                            incremental_learning=False):
     exclude = dict()
     include = dict()
     if include_preprocessors is not None and \
@@ -46,24 +47,24 @@ def get_configuration_space(info,
             raise ValueError(info['task'])
 
     if info['task'] in REGRESSION_TASKS:
-        return _get_regression_configuration_space(info, include, exclude)
+        return _get_regression_configuration_space(info, include, exclude, incremental_learning)
     else:
-        return _get_classification_configuration_space(info, include, exclude)
+        return _get_classification_configuration_space(info, include, exclude, incremental_learning)
 
 
-def _get_regression_configuration_space(info, include, exclude):
+def _get_regression_configuration_space(info, include, exclude, incremental_learning):
     sparse = False
     if info['is_sparse'] == 1:
         sparse = True
     configuration_space = SimpleRegressionPipeline(
-        dataset_properties={'sparse': sparse},
+        dataset_properties={'sparse': sparse, 'incremental_learning': incremental_learning},
         include=include,
         exclude=exclude
     ).get_hyperparameter_search_space()
     return configuration_space
 
 
-def _get_classification_configuration_space(info, include, exclude):
+def _get_classification_configuration_space(info, include, exclude, incremental_learning):
     task_type = info['task']
 
     multilabel = False
@@ -85,7 +86,8 @@ def _get_classification_configuration_space(info, include, exclude):
     dataset_properties = {
         'multilabel': multilabel,
         'multiclass': multiclass,
-        'sparse': sparse
+        'sparse': sparse,
+        'incremental_learning': incremental_learning
     }
 
     return SimpleClassificationPipeline(

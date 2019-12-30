@@ -97,6 +97,7 @@ class RandomForest(
                 'handles_classification': False,
                 'handles_multiclass': False,
                 'handles_multilabel': False,
+                'handles_incremental_learning': False,
                 'prefers_data_normalized': False,
                 'is_deterministic': True,
                 'input': (DENSE, SPARSE, UNSIGNED_DATA),

@@ -152,6 +152,7 @@ class AutoML(BaseEstimator):
         dataset_name: Optional[str] = None,
         only_return_configuration_space: Optional[bool] = False,
         load_models: bool = True,
+        incremental_learning: bool = False,
     ):
         if self._shared_mode:
             # If this fails, it's likely that this is the first call to get
@@ -206,6 +207,7 @@ class AutoML(BaseEstimator):
             metric=metric,
             load_models=load_models,
             only_return_configuration_space=only_return_configuration_space,
+            incremental_learning=incremental_learning
         )
 
     # TODO this is very old code which can be dropped!
@@ -320,6 +322,7 @@ class AutoML(BaseEstimator):
         metric: Scorer,
         load_models: bool,
         only_return_configuration_space: bool = False,
+        incremental_learning: bool = False,
     ):
         # Reset learnt stuff
         self.models_ = None
@@ -859,7 +862,8 @@ class AutoML(BaseEstimator):
             include_estimators=include_estimators,
             exclude_estimators=exclude_estimators,
             include_preprocessors=include_preprocessors,
-            exclude_preprocessors=exclude_preprocessors)
+            exclude_preprocessors=exclude_preprocessors,
+            incremental_learning=self.incremental_learning)
         configuration_space = self.configuration_space_created_hook(
             datamanager, configuration_space)
         sp_string = pcs.write(configuration_space)
@@ -931,12 +935,13 @@ class BaseAutoML(AutoML):
 
 
 class AutoMLClassifier(BaseAutoML):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, incremental_learning=False, **kwargs):
         super().__init__(*args, **kwargs)
 
         self._task_mapping = {'multilabel-indicator': MULTILABEL_CLASSIFICATION,
                               'multiclass': MULTICLASS_CLASSIFICATION,
                               'binary': BINARY_CLASSIFICATION}
+        self.incremental_learning = incremental_learning
 
     def fit(
         self,
@@ -949,6 +954,7 @@ class AutoMLClassifier(BaseAutoML):
         dataset_name: Optional[str] = None,
         only_return_configuration_space: bool = False,
         load_models: bool = True,
+        incremental_learning: bool = False,
     ):
         X, y = self._perform_input_checks(X, y)
         if X_test is not None:
@@ -994,6 +1000,7 @@ class AutoMLClassifier(BaseAutoML):
             dataset_name=dataset_name,
             only_return_configuration_space=only_return_configuration_space,
             load_models=load_models,
+            incremental_learning=incremental_learning,
         )
 
     def fit_ensemble(self, y, task=None, metric=None, precision='32',
@@ -1071,6 +1078,7 @@ class AutoMLRegressor(BaseAutoML):
         dataset_name: Optional[str] = None,
         only_return_configuration_space: bool = False,
         load_models: bool = True,
+        incremental_learning: bool = False,
     ):
         X, y = super()._perform_input_checks(X, y)
         _n_outputs = 1 if len(y.shape) == 1 else y.shape[1]
